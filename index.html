@@ -8485,8 +8485,12 @@ function exportSelf(){
     document.body.appendChild(a);
     a.click();
     setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(a.href); }catch(e){} }, 4000);
-    toast('📤 已导出到「下载」文件夹，发到 iPad / 平板即可打开', 4200);
-  }catch(e){ toast('导出失败：' + (e.message || e), 3600); }
+    toast('📤 已导出（' + Math.round(html.length / 1024) + ' KB）到「下载」文件夹，发到 iPad / 平板即可打开', 4600);
+    if((html.length / 1048576) > 6){ setTimeout(function(){ toast('⚠️ 文件偏大：下次请在首页导出（当前页面渲染内容多）', 5200); }, 900); }
+    if(/Android/.test(navigator.userAgent || '') && /wv\)/.test(navigator.userAgent || '')){
+      setTimeout(function(){ toast('提示：安卓 App 内若没弹出下载框，请用 Chrome 打开网页版再导出', 5600); }, 1200);
+    }
+  }catch(e){ toast('导出失败（WebView 可能不支持下载）：请用 Chrome / Safari 打开网页版再导出', 5000); }
 }
 setTimeout(function(){ try{ patchBoot(); }catch(e){} }, 40);
 
