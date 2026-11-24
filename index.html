@@ -5236,6 +5236,29 @@ function renderStats(){
      + '</div>'
      + '<div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(8*var(--S));line-height:1.5;">复习默认 0 = 不限：今天到期多少做多少，跟 Anki 一样自动排。想限量就填个数字。新词从「没学过的」里随机抽。</div>'
      + '</div>';
+  /* ★ v8.8 学习统计页：卡包列表 + 合并入口（用户是从这个页面找合并的） */
+  (function(){
+    function _esc(x){ return String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    var _bk = [];
+    if(S.vocab) _bk.push(S.vocab);
+    (S.ankiBooks || []).forEach(function(n){ if(n && _bk.indexOf(n) < 0) _bk.push(n); });
+    var _rows = '';
+    _bk.forEach(function(n){
+      var cnt = 0;
+      try { var a = _loadBook(n); cnt = (a && a.length) || 0; } catch(e){}
+      var isCur = (n === S.vocab);
+      _rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:calc(11*var(--S)) 0;border-bottom:1px solid #F2F2F2;font-size:calc(21*var(--S));">'
+        + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:' + (isCur ? 'var(--c-primary)' : '#333') + ';">' + (isCur ? '★ ' : '') + _esc(n) + '</span>'
+        + '<span style="color:#999;margin-left:calc(12*var(--S));flex:none;">' + cnt + ' 词</span></div>';
+    });
+    h += '<div class="statcard"><div class="card-t">我的卡包（' + _bk.length + ' 个）</div>'
+      + (_bk.length ? _rows : '<div style="color:#AAA;font-size:calc(20*var(--S));">还没有卡包</div>')
+      + (_bk.length >= 2
+          ? '<button class="btn block" style="background:#7C6AE8;margin-top:calc(16*var(--S));" onclick="mergeOpen()">🔗 合并两个卡包</button>'
+            + '<div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(8*var(--S));line-height:1.55;">把勾选的几个卡包合成一个<span style="color:#7C6AE8;">新卡包</span>：同名单词自动去重，背得深的那个进度留下。原来那几个卡包都不会被删，随时能切回去。</div>'
+          : '<div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(6*var(--S));">导入两个以上卡包后，这里会出现「合并」按钮。</div>')
+      + '</div>';
+  })();
   if(stTab === 'curve'){
     h += '<div style="background:#fff;padding:calc(6*var(--S)) calc(6*var(--S)) calc(10*var(--S));margin:0 calc(-24*var(--S));">' + curveSvg() + '</div>';
     box.innerHTML = h; return;
