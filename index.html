@@ -544,7 +544,7 @@ button,.btn,.wcard,.cutrow,.ball,.row,.vrow{touch-action:manipulation;}
       </div>
     </div>
     <div class="bottombar">
-      <button class="btn block" onclick="toast('开始复习（待实现 S8）')">开始复习</button>
+      <button class="btn block" onclick="startReview()">开始复习</button>
     </div>
   </section>
 
@@ -724,7 +724,19 @@ button,.btn,.wcard,.cutrow,.ball,.row,.vrow{touch-action:manipulation;}
     <div id="vocabList"></div>
     <div class="acts">
       <button class="btn" onclick="confirmVocab()">确认</button>
+      <button class="btn" style="background:#7C6AE8;" onclick="mergeOpen()">🔗 合并词库</button>
       <button class="btn orange" onclick="hideMask('m-vocab')">取消</button>
+    </div>
+  </div>
+</div>
+<div class="mask hide" id="m-merge">
+  <div class="modal">
+    <h3>合并词库</h3>
+    <div id="mergeSrcBox"></div>
+    <input id="mergeName" type="text" placeholder="新词库名字（不填就自动起一个）" style="width:100%;margin-top:calc(14*var(--S));padding:calc(12*var(--S));border:1px solid #DDD;border-radius:calc(10*var(--S));font-size:calc(22*var(--S));box-sizing:border-box;">
+    <div class="acts">
+      <button class="btn" onclick="mergeDo()">开始合并</button>
+      <button class="btn orange" onclick="hideMask('m-merge')">取消</button>
     </div>
   </div>
 </div>
@@ -3717,7 +3729,7 @@ var S = {
   batchDay: '',                     // 批次锁定日期
   rlog: [],                         // 复习日志（真实遗忘曲线数据点）
   newGoal: 20,                      // 每日新学上限
-  revGoal: 100,                     // 每日复习上限
+  revGoal: 0,                       // 每日复习上限（0 = 不限，跟着到期走）
   retain: 0.9,                      // 目标保留率（越高复习越勤）
   gkSel: null,                      // ★语法训练：选中的语法点
   gkQuiz: null,                     // ★语法训练：当前答题会话
@@ -3747,7 +3759,7 @@ function ensureState(){
   if(S.round == null) S.round = 0;
   if(S.page == null) S.page = 0;
   if(S.newGoal == null) S.newGoal = 20;
-  if(S.revGoal == null) S.revGoal = 100;
+  if(S.revGoal == null) S.revGoal = 0;
   if(S.retain == null) S.retain = 0.9;
   if(!S.postStat) S.postStat = { total:0, wrong:0, acc:100 };
   if(!S.cutStat) S.cutStat = { pending:0, yes:0, no:0 };
@@ -4680,7 +4692,7 @@ function reviewPlanList(){
   var now = Date.now();
   var arr = S.words.filter(function(x){ return x.rv && x.rv.next && x.rv.next <= now; });
   arr.sort(function(a, b){ return (a.rv.next || 0) - (b.rv.next || 0); });   /* 逾期越久越靠前 */
-  return arr.slice(0, Math.max(1, S.revGoal || 100));
+  return (S.revGoal > 0) ? arr.slice(0, Math.max(1, S.revGoal)) : arr;
 }
 function copyTodayWords(){
   var arr = reviewPlanList();
@@ -5215,14 +5227,14 @@ function renderStats(){
     + statsTabBtn('curve', '遗忘曲线') + statsTabBtn('learn', '学习情况') + statsTabBtn('persist', '记忆持久度') + '</div>';
   /* ★ v9.8.2：今日额度胶囊（3 个 Tab 都能直接改，不用先切到「学习情况」） */
   var _gn = (S.newGoal == null) ? 20 : S.newGoal;
-  var _gr = (S.revGoal == null) ? 100 : S.revGoal;
+  var _gr = (S.revGoal == null) ? 0 : S.revGoal;
   var _inSt = 'width:calc(120*var(--S));font-size:calc(21*var(--S));padding:calc(6*var(--S)) calc(8*var(--S));border:1px solid #DDD;border-radius:calc(10*var(--S));box-sizing:border-box;text-align:center;';
   h += '<div class="statcard"><div class="card-t">今日额度（随时可改）</div>'
      + '<div style="display:flex;align-items:center;gap:calc(10*var(--S));flex-wrap:wrap;font-size:calc(21*var(--S));color:#666;">'
      +   '新词 <input id="newGoalNum" type="number" min="0" max="500" value="' + _gn + '" onchange="setGoal(\'new\', this.value)" style="' + _inSt + '"> 个/天'
-     +   ' &nbsp;复习 <input id="revGoalNum" type="number" min="0" max="999" value="' + _gr + '" onchange="setGoal(\'rev\', this.value)" style="' + _inSt + '"> 个/天'
+     +   ' &nbsp;复习 <input id="revGoalNum" type="number" min="0" max="999" value="' + _gr + '" onchange="setGoal(\'rev\', this.value)" style="' + _inSt + '"> 个/天（0 = 不限）'
      + '</div>'
-     + '<div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(8*var(--S));line-height:1.5;">改完立刻生效：下次点「开始复习」就按新额度抽词；新词是从「从没学过的」里随机抽的。</div>'
+     + '<div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(8*var(--S));line-height:1.5;">复习默认 0 = 不限：今天到期多少做多少，跟 Anki 一样自动排。想限量就填个数字。新词从「没学过的」里随机抽。</div>'
      + '</div>';
   if(stTab === 'curve'){
     h += '<div style="background:#fff;padding:calc(6*var(--S)) calc(6*var(--S)) calc(10*var(--S));margin:0 calc(-24*var(--S));">' + curveSvg() + '</div>';
@@ -6595,9 +6607,9 @@ function buildReviewQueue(){
   });
   var T = (S.log || {})[dayKey()] || {};
   var newGoal = (S.newGoal == null) ? 20 : S.newGoal;
-  var revGoal = (S.revGoal == null) ? 100 : S.revGoal;
+  var revGoal = (S.revGoal == null) ? 0 : S.revGoal;
   var newLeft = Math.max(0, newGoal - (T.learn || 0));      /* 今日新卡剩余额度 */
-  var revLeft = Math.max(0, revGoal - (T.review || 0));     /* 今日复习剩余额度 */
+  var revLeft = (revGoal > 0) ? Math.max(0, revGoal - (T.review || 0)) : 999999;     /* 今日复习剩余额度 */
   pool = shuffle(pool.slice());                            /* Anki 默认新卡随机顺序 */
   var pickNew = pool.slice(0, newLeft);
   var pickRev = learn.slice();                             /* 学习步骤中的卡不占复习额度 */
@@ -6627,7 +6639,7 @@ function startReview(){
       var tip = nx && nx.rv.next > Date.now()
         ? '最近的 ' + Math.max(1, Math.round((nx.rv.next - Date.now()) / 3600000)) + ' 小时后到期'
         : '还有词在学习中';
-      var _cap = Math.max(1, S.revGoal || 100);
+      var _cap = (S.revGoal > 0) ? Math.max(1, S.revGoal) : learned.length;   /* 0 = 不限 */
       var _pick = learned.slice(0, _cap);
       showConfirm('当前没有到期的复习词（' + tip + '）。按复习目标提前复习 ' + _pick.length + ' 个词？', function(){
         rvStart(_pick.map(function(x){ return x.w; }));
@@ -7138,6 +7150,96 @@ function switchTo3500(name){
   save();
   toast('已切换到高考3500：保留旧进度 ' + kept + ' 词，新词 ' + added + ' 个（按高频排第一）', 4200);
   try{ renderNine(); }catch(e){}
+}
+
+/* ==================================================
+   v8.7 词库合并：两本（或多本）合成一本，进度一起带过去
+   ———— 不改动原来的任何一本，随时能切回去    ————
+   ================================================== */
+var _mergeSrcs = [];
+function _srcWords(name){
+  if(!name) return [];
+  if(name.indexOf('【当前】') === 0) return S.words || [];
+  if(name.indexOf('高考3500') >= 0){
+    var g = (typeof GS3500 !== 'undefined' && GS3500) ? GS3500 : [];
+    return g.map(function(o, i){ return { w: o[0], m: o[2] || '', ph: o[1] || '', group: Math.floor(i / 5) }; });
+  }
+  if(_isAnkiBook(name)) return _loadBook(name) || [];
+  return [];
+}
+function _learnRank(y){ return (y.learn === 'learned') ? 3 : ((y.learn === 'learning' || y.learn === 'relearning') ? 2 : 1); }
+function _mergeWordArrays(arrs){
+  var out = [], map = {};
+  arrs.forEach(function(arr){
+    (arr || []).forEach(function(x){
+      if(!x || !x.w) return;
+      var k = String(x.w).toLowerCase();
+      var old = map[k];
+      if(!old){ map[k] = x; out.push(x); return; }
+      if(!old.m && x.m) old.m = x.m;
+      if(!old.ph && x.ph) old.ph = x.ph;
+      if(_learnRank(x) > _learnRank(old)){ old.learn = x.learn; if(x.pre) old.pre = x.pre; }
+      if(x.post != null && old.post == null) old.post = x.post;
+      if(x.rv){
+        var r1 = x.rv.reps || 0, r0 = old.rv ? (old.rv.reps || 0) : -1;
+        if(!old.rv || r1 > r0 || (r1 === r0 && (x.rv.S || 0) > (old.rv.S || 0))) old.rv = x.rv;
+      }
+    });
+  });
+  return out;
+}
+function mergeOpen(){
+  var cur = S.vocab || ((typeof VOCABS !== 'undefined' && VOCABS[0]) || '');
+  var srcs = [];
+  if(cur.indexOf('高考3500') < 0 && typeof GS3500 !== 'undefined' && GS3500 && GS3500.length) srcs.push('🔥高考3500（高频优先）');
+  srcs.push('【当前】' + cur);
+  (S.ankiBooks || []).forEach(function(n){ if(n !== cur && srcs.indexOf(n) < 0) srcs.push(n); });
+  _mergeSrcs = srcs;
+  var box = $('mergeSrcBox');
+  if(!box) return;
+  var h = '<div style="font-size:calc(20*var(--S));color:#666;line-height:1.6;margin-bottom:calc(10*var(--S));">勾选 2 本以上，合成一本新的。原来的词库一个都不动，以后还能切回去。</div>';
+  if(srcs.length < 2){
+    h += '<div style="font-size:calc(21*var(--S));color:#999;padding:calc(14*var(--S)) 0;">只有一本词库可以选。先去「从 Anki 导入词库」导入一本，就能合并了。</div>';
+  } else {
+    srcs.forEach(function(n, i){
+      h += '<label style="display:flex;align-items:center;gap:calc(12*var(--S));padding:calc(10*var(--S)) 0;border-bottom:1px solid #EEE;font-size:calc(21*var(--S));">'
+         + '<input type="checkbox" class="mgsrc" data-i="' + i + '" style="width:calc(34*var(--S));height:calc(34*var(--S));">'
+         + '<span>' + n + '</span></label>';
+    });
+  }
+  box.innerHTML = h;
+  var nm = $('mergeName'); if(nm) nm.value = '';
+  showMask('m-merge');
+}
+function mergeDo(){
+  var picks = [];
+  var cbs = document.querySelectorAll('.mgsrc');
+  for(var i = 0; i < cbs.length; i++){ if(cbs[i].checked) picks.push(_mergeSrcs[+cbs[i].getAttribute('data-i')]); }
+  if(picks.length < 2){ toast('至少勾选 2 本词库'); return; }
+  var arrs = picks.map(function(n){ return _srcWords(n); });
+  var total0 = 0; arrs.forEach(function(a){ total0 += a.length; });
+  if(!total0){ toast('选中的词库没有词'); return; }
+  var merged = _mergeWordArrays(arrs);
+  var nmEl = $('mergeName');
+  var name = (nmEl && nmEl.value ? nmEl.value : '').trim();
+  if(!name) name = '🔗合集（' + picks.length + '本·' + merged.length + '词）';
+  S.ankiBooks = S.ankiBooks || [];
+  var base = name, n2 = 2;
+  while(_isAnkiBook(name) || name === S.vocab){ name = base + ' ' + (n2++); }
+  if(!_saveBook(name, merged)){
+    toast('词库太大，浏览器存不下（约 ' + Math.round(JSON.stringify(merged).length / 1048576 * 10) / 10 + ' MB）。建议只合并两本小一点的。', 5000);
+    return;
+  }
+  S.ankiBooks.push(name);
+  S.words = merged;
+  S.vocab = name;
+  _resetRounds();
+  save();
+  hideMask('m-merge');
+  hideMask('m-vocab');
+  toast('已合并：' + total0 + ' → ' + merged.length + ' 词（去重 ' + (total0 - merged.length) + '）', 5000);
+  try{ renderNine(); }catch(e){}
+  try{ renderVocabName(); }catch(e){}
 }
 
 /* ==================================================
