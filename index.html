@@ -5209,6 +5209,17 @@ function renderStats(){
   var stTab = S.statsTab || 'curve';
   var h = '<div class="flex" style="background:#fff;border-radius:calc(20*var(--S));margin-bottom:calc(18*var(--S));box-shadow:0 calc(2*var(--S)) calc(10*var(--S)) rgba(0,0,0,.05);">'
     + statsTabBtn('curve', '遗忘曲线') + statsTabBtn('learn', '学习情况') + statsTabBtn('persist', '记忆持久度') + '</div>';
+  /* ★ v9.8.2：今日额度胶囊（3 个 Tab 都能直接改，不用先切到「学习情况」） */
+  var _gn = (S.newGoal == null) ? 20 : S.newGoal;
+  var _gr = (S.revGoal == null) ? 100 : S.revGoal;
+  var _inSt = 'width:calc(120*var(--S));font-size:calc(21*var(--S));padding:calc(6*var(--S)) calc(8*var(--S));border:1px solid #DDD;border-radius:calc(10*var(--S));box-sizing:border-box;text-align:center;';
+  h += '<div class="statcard"><div class="card-t">今日额度（随时可改）</div>'
+     + '<div style="display:flex;align-items:center;gap:calc(10*var(--S));flex-wrap:wrap;font-size:calc(21*var(--S));color:#666;">'
+     +   '新词 <input id="newGoalNum" type="number" min="0" max="500" value="' + _gn + '" onchange="setGoal(\'new\', this.value)" style="' + _inSt + '"> 个/天'
+     +   ' &nbsp;复习 <input id="revGoalNum" type="number" min="0" max="999" value="' + _gr + '" onchange="setGoal(\'rev\', this.value)" style="' + _inSt + '"> 个/天'
+     + '</div>'
+     + '<div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(8*var(--S));line-height:1.5;">改完立刻生效：下次点「开始复习」就按新额度抽词；新词是从「从没学过的」里随机抽的。</div>'
+     + '</div>';
   if(stTab === 'curve'){
     h += '<div style="background:#fff;padding:calc(6*var(--S)) calc(6*var(--S)) calc(10*var(--S));margin:0 calc(-24*var(--S));">' + curveSvg() + '</div>';
     box.innerHTML = h; return;
@@ -5324,10 +5335,8 @@ function renderStats(){
      + '到期复习词会按「逾期越久越靠前」排队；每日上限到了会自动停，剩下的留到明天。</div>'
      + '<div class="strow"><span>每日新词数</span><b id="newGoalVal">' + (S.newGoal == null ? 20 : S.newGoal) + '</b></div>'
      + '<input type="range" min="0" max="60" step="5" value="' + (S.newGoal == null ? 20 : S.newGoal) + '" oninput="setGoal(\'new\', this.value)" style="width:100%;">'
-     + '<div style="display:flex;align-items:center;gap:calc(8*var(--S));margin-top:calc(8*var(--S));font-size:calc(20*var(--S));color:#888;flex-wrap:wrap;">直接输入 <input id="newGoalNum" type="number" min="0" max="500" value="' + (S.newGoal == null ? 20 : S.newGoal) + '" onchange="setGoal(\'new\', this.value)" style="width:calc(120*var(--S));font-size:calc(21*var(--S));padding:calc(6*var(--S)) calc(8*var(--S));border:1px solid #DDD;border-radius:calc(10*var(--S));box-sizing:border-box;"> 个/天（0 = 今天不学新词）</div>'
      + '<div class="strow" style="margin-top:calc(14*var(--S));"><span>每日复习数</span><b id="revGoalVal">' + (S.revGoal == null ? 100 : S.revGoal) + '</b></div>'
      + '<input type="range" min="0" max="300" step="10" value="' + (S.revGoal == null ? 100 : S.revGoal) + '" oninput="setGoal(\'rev\', this.value)" style="width:100%;">'
-     + '<div style="display:flex;align-items:center;gap:calc(8*var(--S));margin-top:calc(8*var(--S));font-size:calc(20*var(--S));color:#888;flex-wrap:wrap;">直接输入 <input id="revGoalNum" type="number" min="0" max="999" value="' + (S.revGoal == null ? 100 : S.revGoal) + '" onchange="setGoal(\'rev\', this.value)" style="width:calc(120*var(--S));font-size:calc(21*var(--S));padding:calc(6*var(--S)) calc(8*var(--S));border:1px solid #DDD;border-radius:calc(10*var(--S));box-sizing:border-box;"> 个/天</div>'
      + '<div class="strow" style="margin-top:calc(14*var(--S));"><span>目标保留率（越高复习越勤）</span><b id="retainVal">' + Math.round((S.retain == null ? 0.9 : S.retain) * 100) + '%</b></div>'
      + '<input type="range" min="80" max="95" step="5" value="' + Math.round((S.retain == null ? 0.9 : S.retain) * 100) + '" oninput="setGoal(\'ret\', this.value)" style="width:100%;">'
      + '<button class="btn" style="width:100%;margin-top:calc(16*var(--S));" onclick="copyTodayWords()">📋 复制今日复习词（拿去让 AI 写文章）</button>'
