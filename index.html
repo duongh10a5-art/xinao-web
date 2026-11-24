@@ -5366,6 +5366,12 @@ function renderStats(){
        + _row('本轮最多重来（次）', 'rlMax', 2, 0, 9)
        + _row('最长间隔上限（天）', 'maxIvl', 365, 1, 3650)
        + _row('水蛭阈值（忘记几次算水蛭）', 'leechTh', 8, 1, 50)
+       + '<div class="strow" style="margin-top:calc(14*var(--S));"><span>记忆曲线校准系数</span><b>' + (S.calib == null ? '1（未校准）' : S.calib) + '</b></div>'
+       + '<div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(6*var(--S));line-height:1.5;">拿你的真实复习记录和预测曲线对比：系数 &lt; 1 说明你忘得比预测更快（自动缩短间隔），&gt; 1 说明记得更牢（间隔拉长）。</div>'
+       + '<div style="display:flex;gap:calc(10*var(--S));margin-top:calc(10*var(--S));flex-wrap:wrap;">'
+       +   '<button class="btn ghost" style="flex:1;min-width:calc(150*var(--S));" onclick="fsrsCalib()">自动校准（用实测数据）</button>'
+       +   '<button class="btn ghost" style="flex:1;min-width:calc(120*var(--S));" onclick="setNum(\'calib\', 1, 1, 0.5, 2)">恢复默认 1</button>'
+       + '</div>'
        + '<div class="strow" style="margin-top:calc(14*var(--S));"><span>🐛 水蛭词（老是忘）</span><b>' + _lc + ' 个</b></div>'
        + (_lc
            ? '<button class="btn ghost" style="width:100%;margin-top:calc(12*var(--S));" onclick="leechReset()">把水蛭词退回「未学」，重新学一遍</button>'
@@ -6365,7 +6371,9 @@ function fForgetS(D, S, R){
 }
 function fIvl(S, dr){
   dr = dr || 0.9;
-  var i = Math.round((S / FSRS_FACTOR) * (Math.pow(dr, 1 / FSRS_DECAY) - 1));
+  var _k = 1;
+  try{ _k = (typeof calibK === 'function') ? calibK() : 1; }catch(e){ _k = 1; }
+  var i = Math.round(((S * _k) / FSRS_FACTOR) * (Math.pow(dr, 1 / FSRS_DECAY) - 1));
   return Math.max(1, Math.min(FSRS_MAX_IVL, i));
 }
 /* 间隔模糊化：>2.5 天时加随机抖动，避免同批词永远撞在一天 */
@@ -8613,6 +8621,47 @@ try{
     });
   }
 }catch(e){}
+
+/* ================= v9.12：记忆曲线自动校准 ================= */
+function calibK(){
+  var k = (S.calib == null) ? 1 : Number(S.calib);
+  if(!(k > 0)) k = 1;
+  return Math.max(0.5, Math.min(2, k));
+}
+function calibSamples(){
+  var pts = (typeof realPoints === 'function') ? realPoints() : [];
+  var n = 0;
+  pts.forEach(function(p){ n += (p.n || 0); });
+  return { pts: pts, n: n };
+}
+function fsrsCalib(){
+  var sm = calibSamples();
+  if(!sm.pts.length || sm.n < 20){
+    toast('样本还不够：至少需要 20 次复习记录（现在 ' + sm.n + ' 次），先背几天再来校准', 4200);
+    return;
+  }
+  var arr = (S.words || []).filter(function(x){ return x.rv && x.rv.S > 0; });
+  if(!arr.length){ toast('还没有记忆中的词，无法校准', 3000); return; }
+  var tot = 0, wsum = 0, detail = [];
+  sm.pts.forEach(function(p){
+    var sum = 0;
+    arr.forEach(function(x){ sum += fR(p.d, x.rv.S); });
+    var pred = sum / arr.length * 100;
+    if(!(pred > 0)) return;
+    var k = p.v / pred;
+    k = Math.max(0.3, Math.min(3, k));
+    tot += k * p.n; wsum += p.n;
+    detail.push('第' + p.d + '天：实测 ' + p.v + '% / 预测 ' + Math.round(pred) + '%');
+  });
+  if(!wsum){ toast('数据不足，无法校准', 3000); return; }
+  var k = tot / wsum;
+  k = Math.max(0.5, Math.min(2, Math.round(k * 100) / 100));
+  S.calib = k;
+  S.calibAt = Date.now();
+  save();
+  renderStats();
+  toast('✅ 校准完成：系数 ' + k + '（样本 ' + wsum + ' 次）\n' + detail.slice(0, 3).join('\n'), 5200);
+}
 
 /* ==========================================================================
    ★ 云同步（GitHub Gist）
