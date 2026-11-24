@@ -522,7 +522,7 @@ button,.btn,.wcard,.cutrow,.ball,.row,.vrow{touch-action:manipulation;}
       </div>
     </div>
     <div class="bottombar gap">
-      <button class="btn block" style="background:#0FA5A2;" onclick="toast('21天抗遗忘（待实现 S8）')">21天抗遗忘</button>
+      <button class="btn block" style="background:#0FA5A2;" onclick="goStatsCurve()">📈 21天抗遗忘曲线</button>
       <button class="btn block orange" onclick="go('grid')">开始识记</button>
     </div>
   </section>
@@ -7297,7 +7297,7 @@ function initApp(){
   try{
     if((S.screen || 'home') !== 'home'){ history.pushState({ screen: S.screen }, '', '#' + S.screen); }
   }catch(e){}
-  showMask('m-vocab');
+  /* ★ v8.9：启动时不再强制弹「请选择词库」（它把首页的「开始复习」挡住了） */
 
   /* S8：把「21天抗遗忘 / 开始复习」两个按钮绑到记忆曲线复习 */
   setTimeout(bindReviewBtns, 0);
@@ -7314,14 +7314,26 @@ function bindReviewBtns(){
       el.setAttribute('onclick', 'startFinalCheck()');
       continue;
     }
-    if(t === '21天抗遗忘' || t === '开始复习'){
+    if(t === '开始复习'){
       el.setAttribute('onclick', 'startReview()');
+      el.style.background = '#0FA5A2';
+      el.style.color = '#fff';
+      continue;
+    }
+    /* ★ v8.9：「21天抗遗忘」改成看遗忘曲线，不再和「开始复习」重复 */
+    if(t === '21天抗遗忘' || t === '📈 21天抗遗忘曲线' || t === '21天抗遗忘曲线'){
+      el.setAttribute('onclick', 'goStatsCurve()');
       el.style.background = '#0FA5A2';
       el.style.color = '#fff';
     }
   }
 }
 
+/* ★ v8.9：首页「21天抗遗忘」→ 打开学习统计的遗忘曲线 */
+function goStatsCurve(){
+  S.statsTab = 'curve';
+  go('stats');
+}
 /* ==================================================
    ★语法训练模块（S10）：FREE零基础笔记提炼的21个语法点
    选点 → AI出新题（DeepSeek）→ 混合刷题 → 错题回顾   ================================================== */
