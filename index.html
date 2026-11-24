@@ -755,6 +755,9 @@ button,.btn,.wcard,.cutrow,.ball,.row,.vrow{touch-action:manipulation;}
       <input type="checkbox" id="ankiMergeChk" style="width:calc(26*var(--S));height:calc(26*var(--S));" onchange="S.ankiMerge = this.checked ? 1 : 0; save();" checked>
       与已有进度「合并」（同一个词两边都背过 → 按复习次数加权平均，不丢任何一个包的进度）
     </label>
+    <div style="margin-top:calc(14*var(--S));font-size:calc(21*var(--S));color:#666;">导入成哪个卡包：</div>
+    <input id="ankiBookName" type="text" placeholder="默认用文件名（例如：四级乱序.apkg → 四级乱序）" style="width:100%;margin-top:calc(8*var(--S));padding:calc(12*var(--S));border:1px solid #DDD;border-radius:calc(10*var(--S));font-size:calc(22*var(--S));box-sizing:border-box;">
+    <div style="font-size:calc(18*var(--S));color:#AAA;margin-top:calc(6*var(--S));line-height:1.5;">两个不同的包 → 请让这里名字不同，它们就会各自成为一个卡包，之后能在「学习统计 → 我的卡包」里合并。</div>
     <div id="ankiPreview" style="margin-top:calc(14*var(--S));font-size:calc(22*var(--S));color:var(--c-text2);">还没有选择文件</div>
     <div class="acts">
       <button class="btn" onclick="ankiPickFile()">选择文件</button>
@@ -8179,6 +8182,16 @@ function _resetRounds(){
   S.rvPrev = null;
 }
 
+/* ★ v9.0：卡包名默认取文件名（去掉扩展名），保证不同包各自独立 */
+function _bookNameFromFile(fn){
+  var n = String(fn || '');
+  n = n.replace(/^.*[\\\/]/, '');                 /* 去路径 */
+  n = n.replace(/\.(apkg|colpkg|txt|csv|tsv)$/i, ''); /* 去扩展名 */
+  n = n.replace(/\s+/g, ' ').trim();
+  if(!n) n = 'Anki词库';
+  if(n.length > 30) n = n.slice(0, 30);
+  return n;
+}
 /* ---------- 弹窗 ---------- */
 function openAnkiImport(){
   _migrateAnkiBooks();
@@ -8200,6 +8213,7 @@ function ankiFileChosen(ev){
   if(!file) return;
   var fname = file.name || '';
   var p = $('ankiPreview');
+  var _ib0 = $('ankiBookName'); if(_ib0) _ib0.value = _bookNameFromFile(fname);
   /* ★ 每次选文件先清掉上次解析的进度，避免 .txt 导入误用上一份 .apkg 的进度 */
   _ankiProg = null; _ankiProgErr = '';
   if(/\.(apkg|colpkg)$/i.test(fname)){
@@ -8335,6 +8349,7 @@ function _finishAnkiRows(rows, bookName, p){
     return;
   }
   _ankiBookName = bookName || '';
+  var _ib1 = $('ankiBookName'); if(_ib1 && _ankiBookName) _ib1.value = _ankiBookName;
   _ankiRows = rows;
   var _showName = _ankiBookName || ((S.ankiBooks && S.ankiBooks.length === 1) ? S.ankiBooks[0] : 'Anki词库');
   var old = _loadBook(_showName) || [];
@@ -8375,11 +8390,10 @@ function parseAnkiText(txt){
 function ankiDoImport(){
   if(!_ankiRows || !_ankiRows.length){ toast('还没有可导入的词'); return; }
   var rows = _ankiRows;
-  var bookName = _ankiBookName || '';
-  if(!bookName){
-    var _books = S.ankiBooks || [];
-    bookName = (_books.length === 1) ? _books[0] : 'Anki词库';
-  }
+  var _ib2 = $('ankiBookName');
+  var bookName = (_ib2 && _ib2.value ? String(_ib2.value) : '').trim() || _ankiBookName || '';
+  /* ★ v9.0：不再「只有一本时并进那一本」——那会让第二个包永远没有自己的卡包 */
+  if(!bookName) bookName = 'Anki词库';
   var oldList = _loadBook(bookName) || [];
   /* ★ 正在用这本词库时，内存里的才是最新进度（含今天刚学的） */
   if(S.vocab === bookName && S.words && S.words.length) oldList = S.words;
