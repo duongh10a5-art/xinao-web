@@ -420,7 +420,7 @@ button,.btn,.wcard,.cutrow,.ball,.row,.vrow{touch-action:manipulation;}
 .daily-lv{display:inline-block;padding:calc(4*var(--S)) calc(14*var(--S));border-radius:calc(12*var(--S));margin-left:calc(12*var(--S));font-size:calc(22*var(--S));}
 </style>
 </head>
-<body><div id="verTag" style="position:fixed;right:6px;bottom:1px;font-size:11px;line-height:1;color:rgba(0,0,0,.22);z-index:0;pointer-events:none;">v9.13</div>
+<body><div id="verTag" style="position:fixed;right:6px;bottom:1px;font-size:11px;line-height:1;color:rgba(0,0,0,.22);z-index:0;pointer-events:none;">v9.15</div>
 <div id="app">
 
   <!-- 顶部窗口栏（录像里有；真机 App 模式隐藏） -->
@@ -6778,8 +6778,12 @@ function renderReview(){
   S.rvViewed = 0;
   $('rvHint').classList.remove('hide');
   var _T0 = (S.log || {})[dayKey()] || {};
+  /* ★ v9.15：上限 ≠ 今天任务量。到期 60 就写 60，别把「上限 290」当成任务量 */
+  var _rvDone = _T0.review || 0;
+  var _rvCapTxt = '不限';
+  if(S.revGoal > 0){ _rvCapTxt = Math.min(S.revGoal, _rvDone + q.length); }
   $('rvProg').textContent = '剩 ' + q.length + ' 词 · 新 ' + (_T0.learn || 0) + '/' + (S.newGoal == null ? 20 : S.newGoal)
-    + ' · 复习 ' + (_T0.review || 0) + '/' + ((S.revGoal > 0) ? S.revGoal : '不限');
+    + ' · 复习 ' + _rvDone + '/' + _rvCapTxt;
   try{ rvUpdateBtns(); }catch(e){}
   $('rvStat').textContent = '😀 ' + (S.rvGood || 0) + ' · 🤔 ' + (S.rvHard || 0) + ' · 😵 ' + (S.rvBad || 0) + (S.rvEasy ? ' · ⚡ ' + S.rvEasy : '');
   /* v8.6需求2：上一词回顾（单词 + 释义 + 忘记/模糊） */
