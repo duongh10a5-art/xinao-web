@@ -420,7 +420,7 @@ button,.btn,.wcard,.cutrow,.ball,.row,.vrow{touch-action:manipulation;}
 .daily-lv{display:inline-block;padding:calc(4*var(--S)) calc(14*var(--S));border-radius:calc(12*var(--S));margin-left:calc(12*var(--S));font-size:calc(22*var(--S));}
 </style>
 </head>
-<body><div id="verTag" style="position:fixed;right:6px;bottom:1px;font-size:11px;line-height:1;color:rgba(0,0,0,.22);z-index:0;pointer-events:none;">v9.17</div>
+<body><div id="verTag" style="position:fixed;right:6px;bottom:1px;font-size:11px;line-height:1;color:rgba(0,0,0,.22);z-index:0;pointer-events:none;">v9.18</div>
 <div id="app">
 
   <!-- 顶部窗口栏（录像里有；真机 App 模式隐藏） -->
@@ -4482,7 +4482,7 @@ function countUnk(){
 /* ==================================================
    学习统计（全部本地数据，离线可用）
    ================================================== */
-/* v9.17: due by day, same as Anki */
+/* v9.18: due by day, same as Anki */
 function dayEnd(){
   var d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime();
 }
@@ -4696,7 +4696,7 @@ function realPoints(){
 }
 /* ★ 今日复习词（给 AI 写文章用） */
 function reviewPlanList(){
-  var de = dayEnd();                              /* ★ v9.17 按天 */
+  var de = dayEnd();                              /* ★ v9.18 按天 */
   var arr = S.words.filter(function(x){ return x.rv && x.rv.next && x.rv.next <= de; });
   arr.sort(function(a, b){ return (a.rv.next || 0) - (b.rv.next || 0); });   /* 逾期越久越靠前 */
   return (S.revGoal > 0) ? arr.slice(0, Math.max(1, S.revGoal)) : arr;
@@ -5376,7 +5376,7 @@ function renderStats(){
 
   /* ⑧ 词表导入 */
   /* ★ 复习计划（可调） + 复制今日复习词给 AI 写文章 */
-  /* ★ v9.17 诊断：词表数 / 有进度 / 今天到期 / 逾期 / 7天内 —— 用于和 Anki 对数 */
+  /* ★ v9.18 诊断：词表数 / 有进度 / 今天到期 / 逾期 / 7天内 —— 用于和 Anki 对数 */
   var _dupN = (function(){ var m = {}, c = 0; (S.words || []).forEach(function(x){ if(!x || !x.w) return; var k = String(x.w).toLowerCase(); if(m[k]) c++; else m[k] = 1; }); return c; })();
   var _dgN = 0, _dgRv = 0, _dgDue = 0, _dgOver = 0, _dgSoon = 0;
   var _dgEnd = dayEnd(), _dg0 = new Date();
@@ -6624,7 +6624,7 @@ function importCsv(inp){
 }
 /* 到期该复习的词 */
 function dueList(){
-  var de = dayEnd();                              /* ★ v9.17 按天 */
+  var de = dayEnd();                              /* ★ v9.18 按天 */
   var arr = S.words.filter(function(x){ return x.rv && x.rv.next && x.rv.next <= de; });
   arr.sort(function(a, b){ return (a.rv.next || 0) - (b.rv.next || 0); });   /* ★ 逾期越久越靠前 */
   return arr;
@@ -7224,7 +7224,7 @@ function _srcWords(name){
   return [];
 }
 function _learnRank(y){ return (y.learn === 'learned') ? 3 : ((y.learn === 'learning' || y.learn === 'relearning') ? 2 : 1); }
-/* ★ v9.17：两份进度取平均（S/D/ivl 按复习次数加权，到期日取较早，避免推迟该复习的词） */
+/* ★ v9.18：两份进度取平均（S/D/ivl 按复习次数加权，到期日取较早，避免推迟该复习的词） */
 function _avgRv(a, b){
   a = a || {}; b = b || {};
   var ra = Math.max(1, a.reps || 1), rb = Math.max(1, b.reps || 1), W = ra + rb;
@@ -7232,7 +7232,13 @@ function _avgRv(a, b){
   var nD = ((a.D || 5) * ra + (b.D || 5) * rb) / W;
   var nI = ((a.ivl || 0) * ra + (b.ivl || 0) * rb) / W;
   var d1 = a.next || a.due || 0, d2 = b.next || b.due || 0;
-  var nDue = (d1 && d2) ? Math.min(d1, d2) : (d1 || d2 || Date.now());
+  var nDue;
+  if(d1 && d2){
+    /* ★ v9.18：到期日也取平均（对齐到天），不再强行取较早那份 */
+    nDue = Math.round((d1 + d2) / 2 / 86400000) * 86400000;
+  } else {
+    nDue = d1 || d2 || Date.now();
+  }
   var e1 = a.ef || 2.5, e2 = b.ef || 2.5;
   return {
     S: Math.round(nS * 10000) / 10000,
@@ -7258,7 +7264,7 @@ function _mergeWordArrays(arrs){
       var k = String(x.w).toLowerCase();
       var old = map[k];
       if(!old){
-        /* ★ v9.17：先克隆再融合，绝不改入参对象（重复调用不会二次平均） */
+        /* ★ v9.18：先克隆再融合，绝不改入参对象（重复调用不会二次平均） */
         var cp = {};
         for(var kk in x){ if(Object.prototype.hasOwnProperty.call(x, kk)) cp[kk] = x[kk]; }
         if(cp.rv){
@@ -7273,7 +7279,7 @@ function _mergeWordArrays(arrs){
       if(_learnRank(x) > _learnRank(old)){ old.learn = x.learn; }
       if(x.pre && _rankPre(x.pre) > _rankPre(old.pre)) old.pre = x.pre;
       if(x.post != null && old.post == null) old.post = x.post;
-      /* ★ v9.17：同一个词两份 → 进度取平均；只有一边有进度 → 直接用 */
+      /* ★ v9.18：同一个词两份 → 进度取平均；只有一边有进度 → 直接用 */
       if(x.rv){
         if(!old.rv){ old.rv = x.rv; old.learn = 'learned'; }
         else { old.rv = _avgRv(old.rv, x.rv); old.learn = 'learned'; }
@@ -7324,6 +7330,7 @@ function mergeDo(){
     toast('词库太大，浏览器存不下（约 ' + Math.round(JSON.stringify(merged).length / 1048576 * 10) / 10 + ' MB）。建议只合并两本小一点的。', 5000);
     return;
   }
+  merged.forEach(function(x, i){ x.group = Math.floor(i / 5); });   /* ★ v9.18：合并后按 5 词重新分组 */
   S.ankiBooks.push(name);
   S.words = merged;
   S.vocab = name;
@@ -8257,7 +8264,7 @@ function _resetRounds(){
   S.rvPrev = null;
 }
 
-/* ★ v9.17：当前词表自身去重——同名多份合并，进度取平均（解决「同一批词被导进来两次」） */
+/* ★ v9.18：当前词表自身去重——同名多份合并，进度取平均（解决「同一批词被导进来两次」） */
 function dedupeWords(){
   var arr = S.words || [];
   var before = arr.length;
