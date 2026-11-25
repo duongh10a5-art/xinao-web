@@ -4482,6 +4482,10 @@ function countUnk(){
 /* ==================================================
    学习统计（全部本地数据，离线可用）
    ================================================== */
+/* v9.16: due by day, same as Anki */
+function dayEnd(){
+  var d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime();
+}
 function dayKey(dt){
   dt = dt || new Date();
   /* ★ v3：凌晨 4 点才算新的一天（Anki 默认 day cutoff=4） */
@@ -4512,7 +4516,7 @@ function statsData(){
     if(x.learn === 'learned' || x.pre === 'known'){
       grad++;
       if(x.learn === 'learning') learningN++;
-      else if(x.rv && x.rv.next && x.rv.next <= Date.now()) dueN++;
+      else if(x.rv && x.rv.next && x.rv.next <= dayEnd()) dueN++;
       else if(x.rv && x.rv.reps === 0 && (x.rv.lapses || 0) > 0) learningN++;
     }
     else if(hasRv) learning++;
@@ -4692,8 +4696,8 @@ function realPoints(){
 }
 /* ★ 今日复习词（给 AI 写文章用） */
 function reviewPlanList(){
-  var now = Date.now();
-  var arr = S.words.filter(function(x){ return x.rv && x.rv.next && x.rv.next <= now; });
+  var de = dayEnd();                              /* ★ v9.16 按天 */
+  var arr = S.words.filter(function(x){ return x.rv && x.rv.next && x.rv.next <= de; });
   arr.sort(function(a, b){ return (a.rv.next || 0) - (b.rv.next || 0); });   /* 逾期越久越靠前 */
   return (S.revGoal > 0) ? arr.slice(0, Math.max(1, S.revGoal)) : arr;
 }
@@ -5372,7 +5376,24 @@ function renderStats(){
 
   /* ⑧ 词表导入 */
   /* ★ 复习计划（可调） + 复制今日复习词给 AI 写文章 */
+  /* ★ v9.16 诊断：词表数 / 有进度 / 今天到期 / 逾期 / 7天内 —— 用于和 Anki 对数 */
+  var _dgN = 0, _dgRv = 0, _dgDue = 0, _dgOver = 0, _dgSoon = 0;
+  var _dgEnd = dayEnd(), _dg0 = new Date();
+  _dg0.setHours(0, 0, 0, 0);
+  var _dgStart = _dg0.getTime();
+  S.words.forEach(function(x){
+    if(!x || !x.w) return;
+    _dgN++;
+    if(x.rv && x.rv.next){
+      _dgRv++;
+      if(x.rv.next <= _dgEnd){ _dgDue++; if(x.rv.next < _dgStart) _dgOver++; }
+      else if(x.rv.next <= _dgEnd + 7 * 86400000) _dgSoon++;
+    }
+  });
+  var _dgLine = '词表 ' + _dgN + ' 词 · 有复习记录 ' + _dgRv + ' · 今天到期 ' + _dgDue
+    + (_dgOver ? '（其中逾期 ' + _dgOver + '）' : '') + ' · 7 天内 ' + _dgSoon;
   h += '<div class="statcard"><div class="card-t">复习计划（每日可调）</div>'
+     + '<div style="font-size:calc(12*var(--S));color:#999;line-height:1.7;margin-bottom:calc(6*var(--S));">' + _dgLine + '</div>'
      + '<div style="font-size:calc(22*var(--S));color:#888;line-height:1.7;margin-bottom:calc(14*var(--S));">'
      + '到期复习词会按「逾期越久越靠前」排队；每日上限到了会自动停，剩下的留到明天。</div>'
      + '<div class="strow"><span>每日新词数</span><b id="newGoalVal">' + (S.newGoal == null ? 20 : S.newGoal) + '</b></div>'
@@ -6598,8 +6619,8 @@ function importCsv(inp){
 }
 /* 到期该复习的词 */
 function dueList(){
-  var now = Date.now();
-  var arr = S.words.filter(function(x){ return x.rv && x.rv.next && x.rv.next <= now; });
+  var de = dayEnd();                              /* ★ v9.16 按天 */
+  var arr = S.words.filter(function(x){ return x.rv && x.rv.next && x.rv.next <= de; });
   arr.sort(function(a, b){ return (a.rv.next || 0) - (b.rv.next || 0); });   /* ★ 逾期越久越靠前 */
   return arr;
 }
@@ -6622,11 +6643,11 @@ function buildReviewQueue(){
     if(!x || !x.w) return;
     if(x.rv && x.rv.next){
       if(x.learn === 'learning' || x.learn === 'relearning'){
-        if(x.rv.next <= now) learn.push(x.w);        /* 学习/重学步骤已到点 → 优先 */
+        if(x.rv.next <= dayEnd()) learn.push(x.w);   /* 学习/重学步骤已到点 → 优先 */
         return;
       }
       if(!isGrad(x)) return;
-      if(x.rv.next <= now) due.push(x.w);
+      if(x.rv.next <= dayEnd()) due.push(x.w);     /* ★ 按天：今天该复习的全进队列 */
       return;
     }
     if(!x.learn && !(x.rv && x.rv.reps)) pool.push(x.w);   /* ★ 从没学过 → 新卡池 */
