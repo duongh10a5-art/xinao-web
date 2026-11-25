@@ -6659,7 +6659,8 @@ function buildReviewQueue(){
       if(x.rv.next <= dayEnd()) due.push(x.w);     /* ★ 按天：今天该复习的全进队列 */
       return;
     }
-    if(!x.learn && !(x.rv && x.rv.reps)) pool.push(x.w);   /* ★ 从没学过 → 新卡池 */
+    var _isNewW = (!x.learn || x.learn === 'unlearned');    /* ★ v9.21修复：learn='unlearned' 也是没学过 */
+    if(_isNewW && !(x.rv && x.rv.reps)) pool.push(x.w);   /* ★ 从没学过 → 新卡池 */
   });
   var T = (S.log || {})[dayKey()] || {};
   var newGoal = (S.newGoal == null) ? 20 : S.newGoal;
@@ -9251,6 +9252,22 @@ function autoPullOnce(){
     }
   }).catch(function(){});
 }
+
+/* ---------- v9.21：从 URL 注入同步配置（iPad 桌面书签免输入） ---------- */
+(function(){
+  try{
+    var h = String(location.hash || '');
+    if(!h || h.length < 3) return;
+    var mt = /(?:^|[#&])t=([^&]+)/.exec(h);
+    var mg = /(?:^|[#&])g=([^&]+)/.exec(h);
+    if(!mt && !mg) return;
+    var c0 = conf();
+    if(mt) c0.token = decodeURIComponent(mt[1]);
+    if(mg) c0.gistId = decodeURIComponent(mg[1]);
+    c0.auto = true;
+    setConf(c0);
+  }catch(e){}
+})();
 
 /* ---------- 导出到全局 ---------- */
 window.openSync = openSync;
