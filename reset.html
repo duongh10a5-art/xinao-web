@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>清理旧缓存</title>
+<div style="font:16px/1.75 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif;padding:26px;color:#333;">
+  <div id="s" style="font-size:19px;font-weight:600;">正在清理旧缓存…</div>
+  <div id="d" style="margin-top:12px;color:#777;font-size:14px;line-height:1.8;"></div>
+  <div style="margin-top:22px;font-size:13px;color:#aaa;">清理完会自动打开新版；如果没跳，手动打开首页即可。</div>
+</div>
+<script>
+(function () {
+  var d = document.getElementById('d'), s = document.getElementById('s'), log = [];
+
+  function done() {
+    d.innerHTML = log.join('<br>');
+    s.textContent = '清理完成 ✅ 正在打开新版…';
+    setTimeout(function () {
+      location.replace('./?v=' + Date.now());
+    }, 1200);
+  }
+
+  var tasks = [];
+
+  if ('serviceWorker' in navigator) {
+    tasks.push(
+      navigator.serviceWorker.getRegistrations().then(function (rs) {
+        log.push('注销 Service Worker：' + rs.length + ' 个');
+        return Promise.all(rs.map(function (r) { return r.unregister(); }));
+      }).catch(function (e) { log.push('SW 失败：' + e.message); })
+    );
+  }
+
+  if (window.caches) {
+    tasks.push(
+      caches.keys().then(function (ks) {
+        log.push('删除缓存文件：' + ks.length + ' 份');
+        return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+      }).catch(function (e) { log.push('缓存失败：' + e.message); })
+    );
+  }
+
+  tasks.push(
+    new Promise(function (res) {
+      try {
+        /* 只清本应用的存档开关类小键，不动背词进度 */
+        localStorage.setItem('ks_sw_reset_at', String(Date.now()));
+        log.push('已打上重载标记');
+      } catch (e) { log.push('本地存储：' + e.message); }
+      res();
+    })
+  );
+
+  Promise.all(tasks).then(done, done);
+})();
+</script>
