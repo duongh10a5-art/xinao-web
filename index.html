@@ -5095,7 +5095,7 @@ function setGoal(kind, v){
   else S.revGoal = v;
   save();
   var el = (kind === 'new') ? $('newGoalVal') : (kind === 'ret') ? $('retainVal') : $('revGoalVal');
-  if(el) el.textContent = (kind === 'ret') ? (v + '%') : v;
+  if(el) el.textContent = (kind === 'ret') ? (v + '%') : ((kind === 'rev' && !v) ? '不限' : v);
   var num = (kind === 'new') ? $('newGoalNum') : (kind === 'rev') ? $('revGoalNum') : null;
   if(num && String(num.value) !== String(v)) num.value = v;
 }
@@ -5377,7 +5377,7 @@ function renderStats(){
      + '到期复习词会按「逾期越久越靠前」排队；每日上限到了会自动停，剩下的留到明天。</div>'
      + '<div class="strow"><span>每日新词数</span><b id="newGoalVal">' + (S.newGoal == null ? 20 : S.newGoal) + '</b></div>'
      + '<input type="range" min="0" max="60" step="5" value="' + (S.newGoal == null ? 20 : S.newGoal) + '" oninput="setGoal(\'new\', this.value)" style="width:100%;">'
-     + '<div class="strow" style="margin-top:calc(14*var(--S));"><span>每日复习数</span><b id="revGoalVal">' + (S.revGoal == null ? 100 : S.revGoal) + '</b></div>'
+     + '<div class="strow" style="margin-top:calc(14*var(--S));"><span>每日复习数（0=不限）</span><b id="revGoalVal">' + (S.revGoal ? S.revGoal : '不限') + '</b></div>'
      + '<input type="range" min="0" max="300" step="10" value="' + (S.revGoal == null ? 100 : S.revGoal) + '" oninput="setGoal(\'rev\', this.value)" style="width:100%;">'
      + '<div class="strow" style="margin-top:calc(14*var(--S));"><span>目标保留率（越高复习越勤）</span><b id="retainVal">' + Math.round((S.retain == null ? 0.9 : S.retain) * 100) + '%</b></div>'
      + '<input type="range" min="80" max="95" step="5" value="' + Math.round((S.retain == null ? 0.9 : S.retain) * 100) + '" oninput="setGoal(\'ret\', this.value)" style="width:100%;">'
@@ -6779,7 +6779,7 @@ function renderReview(){
   $('rvHint').classList.remove('hide');
   var _T0 = (S.log || {})[dayKey()] || {};
   $('rvProg').textContent = '剩 ' + q.length + ' 词 · 新 ' + (_T0.learn || 0) + '/' + (S.newGoal == null ? 20 : S.newGoal)
-    + ' · 复习 ' + (_T0.review || 0) + '/' + (S.revGoal == null ? 100 : S.revGoal);
+    + ' · 复习 ' + (_T0.review || 0) + '/' + ((S.revGoal > 0) ? S.revGoal : '不限');
   try{ rvUpdateBtns(); }catch(e){}
   $('rvStat').textContent = '😀 ' + (S.rvGood || 0) + ' · 🤔 ' + (S.rvHard || 0) + ' · 😵 ' + (S.rvBad || 0) + (S.rvEasy ? ' · ⚡ ' + S.rvEasy : '');
   /* v8.6需求2：上一词回顾（单词 + 释义 + 忘记/模糊） */
@@ -7317,7 +7317,14 @@ function bindReviewBtns(){
       el.setAttribute('onclick', 'startFinalCheck()');
       continue;
     }
-    if(t === '开始复习'){
+    if(/^开始复习/.test(t)){
+      /* ★ v9.14：把「今天到期多少个」直接写在按钮上 */
+      var _dueN = 0;
+      try{
+        if(S.rvQueue && S.rvQueue.length){ _dueN = S.rvQueue.length; }
+        else{ _dueN = buildReviewQueue().length; }
+      }catch(e){ _dueN = 0; }
+      if(_dueN > 0){ el.textContent = '开始复习 · 到期 ' + _dueN + ' 词'; }
       el.setAttribute('onclick', 'startReview()');
       el.style.background = '#0FA5A2';
       el.style.color = '#fff';
